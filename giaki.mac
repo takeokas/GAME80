@@ -1538,7 +1538,7 @@ PSIOBC	EQU	1BH
 ;;;;;;
 ;
 ;	Init CTC, SIO
-;
+;This routine gotten from https://github.com/vintagechips/saki80basic
 ;	SIOA COMMAND sequence
 SIOACD:
 	DB	00011000B	;RESET
