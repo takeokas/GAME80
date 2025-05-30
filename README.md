@@ -3,10 +3,10 @@
 
 ## GIAKI.MAC: GAME80 interpriter, enhanced by S.Takeoka
 
-大小比較を正しくした。6800版と同一に
-The Less< and the Greater> operators judge correctly.same as 6800 version.
- try below: 下の式を試せばわかります。(オリジナルのGAME80, GAME Z80は判定が誤っています)
-  ?=-32764>100 " "?=-32764>=100 " "?=-32764<100 " "?=-32764<=100
+ 大小比較を正しくした。6800版と同一に。
+ The Less< and the Greater> operators judge correctly.same as 6800 version.
+   try below: 下の式を試せばわかります。(オリジナルのGAME80, GAME Z80は判定が誤っています)
+    ?=-32764>100 " "?=-32764>=100 " "?=-32764<100 " "?=-32764<=100
 
 二項演算子を追加
 ; Extented binary logocal operator: |(or),&(and),^(xor)
