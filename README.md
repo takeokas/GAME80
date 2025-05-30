@@ -5,22 +5,23 @@
 
 ### 大小比較を正しくした。6800版と同一に。  
 The Less< and the Greater> operators judge correctly.same as 6800 version.  
-   try below: 下の式を試せばわかります。(オリジナルのGAME80, GAME Z80は判定が誤っています)  
+   try below: 下の式を試せばわかります。(オリジナルのGAME80, GAME Z80は判定が誤っている)  
     ?=-32764>100 " "?=-32764>=100 " "?=-32764<100 " "?=-32764<=100  
 
 ### 二項演算子を追加  
+ |(or),&(and),^(xor) を追加。  
 ; Extented binary logocal operator: |(or),&(and),^(xor)  
 
 ### I/Oポート・アクセス機能を追加  
-   ^:ポート番地式)=式   で、式を評価した値を、ポート番地式を評価結果のポートに書き込みます。  
-   式の中に ^:ポート番地式) が出てきたら、ポート番地式を評価結果のポートからデータを読み込んで値とします。  
+   ^:ポート番地式)=式   で、式を評価した値を、ポート番地式を評価結果のポートに書き込む。  
+   式の中に ^:ポート番地式) が出てきたら、ポート番地式を評価結果のポートからデータを読み込んで値とする。  
 
 ; Extented I/O port access: "^" symbol as belows  
 ;     ^:port)=exp  outputs <exp>-value to <port>.  
 ;    The "^:port)" that appears in the expression reads the value from the "port".  
 
 ### 行編集機能
- プロンプトで 行番号\  と入力すると、指定の行を編集できる。  
+ プロンプトで 「行番号\」  と入力すると、指定の行を編集できる。  
   行編集コマンド,emacs風  
      行頭<-^A,  左<^B, DEL^D, >^F右, ->^E 行末  
 ; Input Line Editor, <-^A, <^B, DEL^D, >^F, ->^E  
