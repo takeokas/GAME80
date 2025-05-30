@@ -1,7 +1,7 @@
 # Game80_Language_interpreter
 1970's small programming language which popular in Japan.  
 独自強化した GAME80 インタープリタ"GAME80t"です。IO命令以外は 8080 CPUで実行できます。  
-*インタープリタ内のサブルーチンのアドレスは変わっているので、通常のGAME80コンパイラが生成するバイナリはどうさしないと思います。  
+*インタープリタ内のサブルーチンのアドレスは変わっているので、通常のGAME80コンパイラが生成するバイナリは動作しないと思います。  
 
 ## GIAKI.MAC: GAME80t interpreter, enhanced by S.Takeoka
 
