@@ -14,8 +14,8 @@ The Less< and the Greater> operators judge correctly.same as 6800,6502,6809 vers
 ; Extented binary logocal operator: |(or),&(and),^(xor)  
 
 ### I/Oポート・アクセス機能を追加  
-   ^:ポート番地式)=式   で、式を評価した値を、ポート番地式を評価結果のポートに書き込む。  
-   式の中に ^:ポート番地式) が出てきたら、ポート番地式を評価結果のポートからデータを読み込んで値とする。  
+   ^:ポート番地式)=式   で、式を評価した値を、ポート番地式のポートに書き込む。  
+   式の中に ^:ポート番地式) が出てきたら、ポート番地式のポートからデータを読み込んで値とする。  
 
 ; Extented I/O port access: "^" symbol as belows  
 ;     ^:port)=exp  outputs <exp>-value to <port>.  
