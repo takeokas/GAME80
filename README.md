@@ -1,8 +1,9 @@
 # Game80_Language_interpreter
 1970's small programming language which popular in Japan.  
-独自強化した GAME80 インタープリタ"GAME80t"です。IO命令以外は 8080 CPUで実行できます。
+独自強化した GAME80 インタープリタ"GAME80t"です。IO命令以外は 8080 CPUで実行できます。  
+*インタープリタ内のサブルーチンのアドレスは変わっているので、通常のGAME80コンパイラが生成するバイナリはどうさしないと思います。  
 
-## GIAKI.MAC: GAME80 interpreter, enhanced by S.Takeoka
+## GIAKI.MAC: GAME80t interpreter, enhanced by S.Takeoka
 
 ### 大小比較を正しくした。6800,6502,6809版と同一に。  
 The Less< and the Greater> operators judge correctly.same as 6800,6502,6809 version.  
@@ -31,7 +32,7 @@ The Less< and the Greater> operators judge correctly.same as 6800,6502,6809 vers
 ### RST ジャンプ・テーブル
 AKI80版では、RST命令のジャンプ・テーブルを 4Bytes づつ用意してある。初期化はしていない。  
  RST1〜7 は RAM上の 0ffe4h〜0fffch へjmpする。このRAM領域にjmp命令を書くなどすれば、任意のルーチンへ飛ばすことができる。  
- NMIは、0ffe0hへジャンプする。この領域は、GAME80の HotStart へのjmp に初期化してある。  
+ NMIは、0ffe0hへジャンプする。この領域は、GAME80tの HotStart へのjmp に初期化してある。  
     外部にNMIスイッチを接続し、そのスイッチのOnで、GAME80のプロンプトに制御を戻すことができる。そのときプログラム・テキストが消えることがない。  
     NMIのジャンプ・テーブルは、ユーザが自由に上書きしてよい。  
 
