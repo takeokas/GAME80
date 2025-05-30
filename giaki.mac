@@ -1,0 +1,1854 @@
+;GIAKI.MAC:
+;	GAME80 interpriter, enhanced by S.Takeoka
+;
+;The Less< and the Greater> operators judge correctly.same as 6800 version.
+; try below:
+;  ?=-32764>100 " "?=-32764>=100 " "?=-32764<100 " "?=-32764<=100
+;
+; Extented binary logocal operator: |(or),&(and),^(xor)
+; Extented I/O port access: "^" symbol as belows
+;     ^:port)=exp  outputs <exp>-value to <port>.
+;    The "^:port)" that appears in the expression reads the value from the "port".
+;
+; Input Line Editor, <-^A, <^B, DEL^D, >^F, ->^E
+; on the prompt, LineNo\ : edit the specified line.
+;
+; AKI80 version:
+; RST1〜7 jump to 0ffe4h〜0fffch on RAM, Those are not initialized.
+; NMI jumps to 0ffe0h.It's default is "jmp hstrt" as jumps to GAME's HotStart.
+;
+;;;NO_LINED equ 1 ; not use input line editor
+;
+	.z80
+
+AKI80 equ 1
+;CPM equ 1
+
+ifdef CPM
+BDOS equ 5
+endif
+
+;;dirpage equ     8dh     ;direct page(Varibles)
+dirpage equ     80h     ;direct page(Varibles)
+;;;
+;OK;stack2  equ     8dc4h
+stack2  equ    0c4h+(dirpage*256)  ;8dc4h, stack2 is in the "lbuf"
+;???;stack2  equ     lbuf+58
+;OK;stack2  equ     8dfeh
+;
+prgAreaBeg  equ     8300h
+;;prgAreaBeg  equ     0b000h
+stack1  equ     prgAreaBeg-2
+;;stack1  equ     0affeh
+;stack1  equ     09000h-2
+ramend  equ     0ffe0h-1
+;prgAreaBeg  equ     9000h
+;ramend  equ     0afffh
+;
+;;; characters
+brkchar equ     3       ;^C
+hltchar equ     13h     ;^S
+;
+bs      equ     08h	;back space
+del     equ     7fh
+cr      equ     0dh
+lf      equ     0ah
+;
+;(format t "~x" (/ (- #x41 4 ) 2)) ;calc. the variable address in CommonLisp
+;(format t "~x" (floor (/ (- (char-int #\A) 4 ) 2)))
+;vadr:=(((0x3f & V)+2)<<1);(format t "~x" (*(+(logand #x3f (char-int #\Z))2)2))
+;
+  org (dirpage*256)
+xxx:
+	ds 4
+var:
+	ds 31*2	;@,A-Z,[,\,],^,_
+xxx1:
+vPc	equ     42h+(dirpage*256);
+vSpc	equ     44h+(dirpage*256) ; ' '
+varGyoNo equ    46h+(dirpage*256)       ; !, current LineNo; y8d46
+vQuote	 equ	48h+(dirpage*256)	;" ,8d48h
+curLine  equ	4ah+(dirpage*256)       ; #, curline;0x844a
+vDoller	  equ	4ch+(dirpage*256)	;$,  8d4ch
+modulo   equ	4eh+(dirpage*256)       ;% ;y8d4e
+pge     equ     50h+(dirpage*256)       ;&
+vrand    equ    52h+(dirpage*256)       ;' ;rand;y8d52
+vParOpe	 equ 	54h+(dirpage*256)	; (
+vParClo	 equ 	56h+(dirpage*256)	; )
+vRamend  equ    58h+(dirpage*256)    ;* ram end, prog area last adr
+vPlus	equ	5ah+(dirpage*256)	;+
+vComma	equ	5ch+(dirpage*256)	;,
+vMinus	equ	5eh+(dirpage*256)	;-
+vDot	equ	60h+(dirpage*256)	;.
+vSlash	equ	62h+(dirpage*256)	;/
+
+;Y8D64 equ 64h+(dirpage*256)       ;'0'
+;Y8D66 equ 66h+(dirpage*256)       ;'1'
+Y8D68 equ 68h+(dirpage*256)       ;'2'
+y8d6a   equ     6ah+(dirpage*256)       ;3
+;y8d6c   equ     6ch+(dirpage*256)       ;4
+;y8d6e   equ     6eh+(dirpage*256)       ;5
+Y8D70   equ     70h+(dirpage*256)       ;6
+y8d72   equ     72h+(dirpage*256)       ;7
+y8d74   equ     74h+(dirpage*256)       ;8
+Y8D76   equ     76h+(dirpage*256)       ;9
+;;;Y8D77   equ     77h+(dirpage*256)       ;
+;Y8D78   equ     78h+(dirpage*256)       ;:
+;Y8D7a   equ     7ah+(dirpage*256)       ; ;
+;Y8D7c   equ     7ch+(dirpage*256)       ;<
+pgb     equ     7eh+(dirpage*256)       ;=
+;Y8D80	equ     80h+(dirpage*256)       ;>
+;Y8D82	equ     82h+(dirpage*256)       ;?
+numbu0	equ 	80h+(dirpage*256)       ;num buffer top,8d80h-8d87h
+	org numbu0
+	ds 8
+numbuf  equ     $-1	;num buffer last byte, 8d87h
+sp2:     ds 2 ;     8d88h
+	;
+lbufsiz	equ     80
+	;public lbuf
+;	org lbuf
+lbuf:			; Y8D8a equ 8d8ah; lbuf
+	ds lbufsiz
+	;org lbuf2
+lbuf2:			;;lbuf2 equ 8e40h
+	ds lbufsiz
+xxx2:
+;
+;
+;
+;
+ifdef AKI80
+        .8080
+	aseg
+	org 0
+	jmp XSTART
+
+rstjmp1	equ 0ffe4h
+	org 8
+	jmp rstjmp1
+
+rstjmp2	equ 0ffe8h
+	org 8*2
+	jmp rstjmp1
+	;
+rstjmp3	equ 0ffech
+	org 8*3
+	jmp rstjmp3
+	;
+rstjmp4	equ 0fff0h
+	org 8*4
+	jmp rstjmp4
+	;
+rstjmp5	equ 0fff4h
+	org 8*5
+	jmp rstjmp5
+	;
+rstjmp6	equ 0fff8h
+	org 8*6
+	jmp rstjmp6
+	;
+rstjmp7	equ 0fffch
+	org 8*7
+	jmp rstjmp7
+	;
+
+nmijmp	equ 0ffe0h
+	org 66h
+	jmp nmijmp
+
+endif   
+
+	.z80
+ifdef CPM
+	aseg
+	org 100h	
+endif
+
+XSTART:
+        JP      cstrt
+        ;JP      hstrt
+verstr:
+        db      cr,lf,'GAME80t (JQ3KLL,2025/MAY/30)',0
+;
+cstrt:	;Cold start
+	.8080
+	lxi sp,stack1	;LD      SP,stack1
+	call sioinit
+if AKI80
+        ; put "jmp hstrt" at 'nmijmp'
+        mvi a,0C3H ;jmp inst.
+	sta nmijmp
+	lxi h,hstrt
+	shld (nmijmp+1)
+endif
+	lxi HL,prgAreaBeg	;new program
+	shld pgb
+	shld pge
+        mvi m,0FFH
+	;
+	.z80
+hstrt:	;hot start , don't clear program
+	LD      SP,stack1
+        LD      HL,verstr
+        CALL    outstr
+	;
+	LD      HL,Ramend
+        LD      (vRamend),HL
+;
+;       main routine
+;
+main:   LD      SP,stack1
+        LD      HL,stack2
+        LD      (sp2),HL
+        LD      HL,ready
+        CALL    outstr
+pmode:
+	CALL    il1
+pmodex:	CALL    inpcom0
+	JP      NC,tstlst
+        LD      (vPC),HL
+        CALL    excstd
+        JP      Z,main
+newl:   CALL    srclin
+excl:   JP      M,main
+        LD      (vPC),HL
+this:   INC     HL
+        INC     HL
+        LD      A,(HL)
+        CP      ' '
+        JP      NZ,nxtl
+        CALL    excstp
+        JP      NZ,jump
+        INC     HL
+        LD      A,(HL)
+        AND     A
+        JP      excl
+;
+nxtl:   CALL    nxtlin
+        JP      excl
+jump:   LD      HL,(vPC)
+        LD      (Y8D72),HL
+        CALL    srch
+        JP      M,main
+        LD      C,low(Y8D72)         ;072H
+        CALL    cmpxx
+        JP      Z,newl
+        JP      this
+;
+;       List/Edit
+;
+tstlst: LD      (Y8D74),HL
+        EX      DE,HL
+        LD      (curLine),HL
+        EX      DE,HL
+        LD      A,(HL)
+        CP      '/'
+        JP      Z,list
+;;;;;;;;
+        CP      '\'
+        JP      NZ,editor
+	; edit existing line
+	CALL    srclin
+	;CALL    crlf
+        LD      A,(HL)
+	or a	;AND     A
+        JP      M,main
+	ld d,(hl)	;de=Line No.
+	inc hl
+	ld e,(hl)
+	ex de,hl
+	ld (curLine),HL
+	ex de,hl
+	inc hl
+	push hl
+	;;;push de! call puts!pop de
+	call bdsgn  ;hl= top of numstr
+	inc hl
+	ld de,lbuf
+        CALL    cpy	;put LineNo. to lbuf
+	dec de
+	pop hl
+	;;;push de!call puts!pop de
+        CALL    cpy
+	push de
+	ld hl,lbuf
+	call puts
+	pop de
+	;
+	ld hl,lbuf
+	ld l,e
+	ld h,d
+	call linedloop
+	;
+	;;ld hl,lbuf !call crlf!call puts
+	ld hl,lbuf
+	pop bc ;ret; drop return PC
+	;	
+	jp pmodex ;HL=lbuf
+;;;;;;;;
+;
+;       List Program
+;
+list:   CALL    srclin
+llp:    CALL    crlf
+        LD      A,(HL)
+	or a	;AND     A
+        JP      M,main
+        CALL    outlin
+        JP      llp
+;
+;       list a line
+;
+outlin: LD      (vPC),HL
+        LD      D,(HL)
+        INC     HL
+        LD      E,(HL)
+        PUSH    HL
+        LD      C,005H
+        CALL    outnum
+        POP     HL
+        INC     HL
+        JP      outstr
+;
+;       search line end
+;
+srczro: LD      HL,(vPC)
+        INC     HL
+sz1:    INC     HL
+        LD      A,(HL)
+        OR      A
+        JP      NZ,sz1
+        INC     HL
+        RET
+;
+;       search the line
+;
+	.8080
+srclin:	lhld	pgb	;LD      HL,(pgb)
+sl:     shld   vPC	;LD      (vPC),HL
+srch:   mov a,m		;LD      A,(HL)
+	ora a		;or a	;AND     A
+	rm  		;RET     M
+	xchg		;EX      DE,HL
+	lhld curLine	;LD      HL,(curLine)
+	xchg 		;EX      DE,HL
+	inx h		;INC     HL
+	mov a,m		;LD      A,(HL)
+	sub e		;SUB     E
+	dcx h		;DEC     HL
+	mov a,m		;LD      A,(HL)
+	sbb d		;SBC     A,D
+	rnc 		;RET     NC
+nxtlin: CALL    srczro	;CALL    srczro
+        jmp      sl	;JP      sl
+	;
+	;
+	.z80
+;
+;       editor
+;
+editor: ;LD      HL,(curLine)
+        LD      A,D
+	or	a	;        AND     A
+        JP      M,main
+        OR      E
+        JP      Z,list
+        LD      HL,(pge)
+        LD      A,(HL)
+        INC     A
+        JP      NZ,main	;0FFh?
+        CALL    srclin
+        JP      M,length
+        LD      B,(HL)	;HL <- Line No.
+        INC     HL
+        LD      L,(HL)
+        LD      H,B
+	;
+	LD      C,low(curLine)         ;04AH
+        CALL    cmpxx
+        JP      NZ,length
+	;
+ifdef NEVER
+      ;; replace call cmpxx
+	push de
+	pop bc
+	ex hl,de
+	ld hl,(curLine)         ;04AH
+	ld a,e
+	sub a,l
+	JP      NZ,length
+	ld a,d
+	sub a,h
+	JP      NZ,length
+	ld e,c	;restore DE
+	ld d,b
+endif
+	;
+delete: CALL    srczro
+        EX      DE,HL
+        LD      HL,(vPC)
+        EX      DE,HL
+d0:     LD      C,low(pge)         ;050H
+        CALL    cmpxx
+        LD      A,(HL)
+        LD      (DE),A
+        INC     HL
+        INC     DE
+        JP      NZ,d0
+        EX      DE,HL
+        DEC     HL
+        LD      (pge),HL
+length: LD      HL,(Y8D74)
+        LD      E,003H
+        LD      A,(HL)
+        OR      A
+        JP      Z,edend
+l1:     INC     E
+        INC     HL
+        LD      A,(HL)
+        OR      A
+        JP      NZ,l1
+        LD      D,A
+        LD      HL,(pge)
+        ADD     HL,DE
+        PUSH    HL
+        EX      DE,HL
+        LD      HL,(vRamend)
+        CALL    wsub
+        JP      NC,main
+        LD      HL,(pge)        ;msprce
+        EX      DE,HL
+        POP     HL
+        LD      (pge),HL
+        EX      DE,HL
+        INC     HL
+ms1:    DEC     HL
+        LD      A,(HL)
+        LD      (DE),A
+        DEC     DE
+        LD      C,low(vPC)         ;042H
+        CALL    cmpxx
+        JP      NZ,ms1
+        EX      DE,HL           ;insert
+        LD      HL,(curLine)
+        EX      DE,HL
+        LD      (HL),D
+        INC     HL
+        LD      (HL),E
+        EX      DE,HL
+        LD      HL,(Y8D74)
+	call cpy
+edend:  LD      SP,stack1
+        JP      pmode
+;
+;	copy (HL)->(DE+1)
+cpy:    LD      A,(HL)
+        INC     HL
+        INC     DE
+        LD      (DE),A
+        OR      A
+        JP      NZ,cpy
+	ret
+;
+;       compair subroutine (C+(dirpage*256))-HL
+;
+cmpxx:  LD      B,dirpage
+        LD      A,(BC)
+        CP      L
+        RET     NZ
+        INC     BC
+        LD      A,(BC)
+        CP      H
+        RET
+;
+;       binary to decimal
+;
+bindec: LD      HL,numbuf
+        LD      (HL),000H
+bdl:    PUSH    HL
+        LD      HL,10
+        CALL    divpos
+        LD      A,L
+        ADD     A,'0'
+        POP     HL
+        DEC     HL
+        LD      (HL),A
+        LD      A,E
+        OR      D
+        JP      NZ,bdl
+        RET
+;
+;       output string
+;
+outstr: XOR     A
+ost1:   LD      B,A
+o2:     LD      A,(HL)
+        INC     HL
+        CP      B
+        JP      Z,break
+        CALL    putc
+        JP      o2
+;
+;       break check
+;
+break:  CALL    getkey
+        or      a
+        ret     z
+brk1:   CP      brkchar
+        JP      Z,main
+        CP      hltchar
+        RET     NZ
+        JP     inpkey
+;
+;       execute statement
+;
+stm2:   CP      ' '
+        JP      Z,excstp
+        LD      D,A
+	;SUB     A
+	xor a
+        LD      (curLine),A
+        LD      (curline+1),A
+        INC     HL              ;nopstm
+        LD      A,(HL)
+        DEC     HL
+        LD      E,A
+        AND     0DFH		;11011111 , ~' '
+        LD      A,D
+        JP      NZ,litstr	;not ' ' or 00
+	;
+        CP      ']'             ;return
+        JP      NZ,do
+        CALL    pulpnt
+        JP      stm3
+;
+do:     CP      '@'		;do
+        JP      NZ,litstr
+        INC     HL
+        LD      (varGyoNo),HL
+        SUB     A
+        LD      DE,00000H
+        CALL    pshvp
+        JP      stm3
+;
+litstr: CP      '"'		;"print string
+        JP      NZ,lscrlf
+        INC     HL
+        CALL    ost1
+        JP      excstd
+;
+lscrlf: CP      '/'		;crlf
+        JP      NZ,artstm
+        CALL    crlf
+        JP      excstp
+;
+artstm: LD      (Y8D72),HL
+        CALL    srcequ
+        CALL    command
+        CALL    break
+        LD      HL,(curLine)
+        LD      A,H
+        OR      L
+        RET     NZ	;HL ==0 then below
+	;
+stm3:   LD      HL,(varGyoNo)
+;;;8806  0623             LD      B,023H
+        db      06h     ;"mvi b,";;; skip "inx hl"
+excstp: inc     hl
+excstd: LD      A,(HL)
+	AND     A
+        JP      NZ,stm2
+        RET
+;
+;       push var & pointer
+;
+pshvp:  EX      DE,HL
+        LD      (Y8D6A),HL
+        EX      DE,HL
+        CALL    pshpnt	;push vPC
+        ;LD      HL,y8d6a
+        LD      HL,(y8d6a)
+        JP      pshx0
+;
+;       2nd arth exp
+;
+secae:  PUSH    DE
+        INC     HL
+        CALL    artexp
+        CALL    pshvp
+        POP     DE
+        RET
+;
+;       search =
+;
+se1:    LD      A,'='
+        JP      error
+;
+srcequ: LD      A,(HL)
+        INC     HL
+        AND     0DFH	;00 or ' '
+        JP      Z,se1
+        CP      '=' and 0DFh
+        JP      NZ,srcequ
+;
+;       arithmatic expression
+;
+artexp: CALL    term
+ae1:    LD      A,(HL)
+        AND     0DFH	;00 or ' '
+        JP      Z,ae2
+        CP      009H    ;)
+        JP      Z,ae3
+        CP      00CH    ;,
+        JP      Z,secae	; "FOR" 2nd exp.
+        CALL    binope
+        LD      HL,(vPlus);(Y8D5A)
+        JP      ae1
+;
+ae2:    LD      (varGyoNo),HL
+        RET
+;
+ae3:    INC     HL
+        RET
+;
+;       term
+;
+term:   CALL    deccns  ;term(2)
+        RET     NC
+        CP      '-'     ;negative
+        JP      NZ,tm3
+        INC     HL
+        CALL    term
+        JP      negab
+;
+tm3:    CP      '+'     ;abs
+        JP      NZ,tm4
+        INC     HL
+        CALL    term
+        LD      A,D
+        AND     A
+        JP      M,negab
+        RET
+;
+tm4:    CP      '#'     ;not
+        JP      NZ,tm5
+        INC     HL
+        CALL    term
+        LD      A,D
+        AND     A
+        JP      eq1
+;
+tm5:    CP      '%'     ;modulo
+        JP      NZ,tm6
+        INC     HL
+        CALL    ae1
+        EX      DE,HL
+        LD      HL,(modulo)      ;%
+        EX      DE,HL
+        RET
+;
+tm6:    CP      ''''    ;rand
+        JP      NZ,tm7
+        INC     HL
+        CALL    term
+        PUSH    HL
+        PUSH    DE
+        LD      HL,(vrand)
+        LD      DE,03D09H
+        CALL    mltply
+        INC     DE
+        EX      DE,HL
+        LD      (vrand),HL      ;'
+        EX      DE,HL
+        POP     HL
+        LD      E,D
+        LD      D,000H
+        CALL    mltply
+        LD      E,D
+        LD      D,000H
+        POP     HL
+        INC     DE
+        RET
+;
+tm7:    CP      '"'     ;ascii const
+        JP      NZ,tm8
+        LD      D,000H
+        INC     HL
+        LD      E,(HL)
+        INC     HL
+        INC     HL
+        RET
+;
+tm8:    CP      '$'
+        JP      NZ,term3
+;
+;       $ mark in A.E
+;
+        LD      D,000H
+        CALL    tsthex
+        JP      C,hexbin
+;       ascii input
+        CALL    getc
+        LD      E,A
+        RET
+;
+tsthex: INC     HL
+        LD      A,(HL)
+        SUB     '0'
+        JP      C,nothex
+        CP      10
+        RET     C	;decimal num,'0'<=x<='9'
+        SUB     007H
+        CP      10
+        JP      C,nothex
+        CP      16
+        RET
+nothex: CCF
+        RET
+;
+hexbin: LD      E,A
+        CALL    tsthex
+        RET     NC
+        EX      DE,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        EX      DE,HL
+        ADD     A,E
+        JP      hexbin
+;
+term3:  CP      '?'     ;input exp
+        JP      NZ,tm1
+        PUSH    HL
+        CALL    inplin
+        CALL    artexp
+        POP     HL
+        INC     HL
+        RET
+;
+tm1:    CP      '('
+        JP      NZ,getvar
+        INC     HL
+        JP      artexp
+;
+	.8080
+getvar: CALL    vname
+        CPi      ':'
+        JZ      getinp
+        CALL    adr2b   ;get2bytes
+        mov  e,m  ;LD      E,(HL)
+        inx h	  ;INC     HL
+        mov d,m	  ;LD      D,(HL)
+        JMP      gb1
+getinp:
+	;Input port access , take@takeoka.net
+	mov a,e
+	cpi '^'	;in-port Variable symbol
+	jnz get1b
+	inx h
+	call  artexp	;calc. port address
+	mov c,e		;
+ifdef AKI80
+        .z80
+	in e,(c)	;Z80 only
+	.8080
+else
+	;value is DE == port address
+endif
+	ret
+	;
+get1b:
+	CALL    adr1b
+        lxi d,0
+        mov e,m
+gb1:    lhld Y8D70	;(Y8D70)
+        RET
+;
+;       variable address
+;
+adr1b:  CALL    adrind
+ad0:
+        lda Y8D76	;lo;13
+        add e		;4
+        mov e,a		;4
+        lda (Y8D76 + 1)	;(Y8D76 + 1)	;hi;13
+	adc d	     	;4
+	mov d,a	     	;4,sun=42
+        JMP      av1
+;
+adr2b:  cpi '('		;CP      '('
+        jnz adrvar	;JP      NZ,adrvar
+        CALL    adrind
+	xchg		;EX      DE,HL
+        dad	h	;ADD     HL,HL
+	xchg		;EX      DE,HL
+        JMP      ad0
+;
+adrind: CALL    adrvar
+        mov c,m ;HL<-(HL)
+        inx h
+        mov h,m
+        mov l,c
+        shld Y8D76  ; LD      (Y8D76),HL
+        lhld Y8D70  ; LD      HL,(Y8D70)
+	inx h
+        JMP      artexp
+;
+vname:  mov e,m
+vn1:    inx h	;sikp Alpha Char
+        mov a,m
+        cpi 'A'
+        mov d,a
+        ;JP      P,vn1
+	jnc vn1
+        RET
+;
+adrvar: mvi d,dirpage	;LD      D,dirpage
+        mov a,e		;LD      A,E
+        ani 03Fh	;AND     03FH
+        adi 2		;ADD     A,002H
+        add a		;ADD     A,A
+	mov e,a		;LD      E,A
+av1:    shld Y8D70	;LD      (Y8D70),HL
+zerop: 	xchg 		;EX      DE,HL
+        mov a,h		;LD      A,H
+        ora l		;OR      L
+        RET
+	;
+	.z80
+;
+;       binary operator
+;
+binope: PUSH    DE
+        LD      D,(HL)
+        INC     HL
+        LD      E,(HL)
+        PUSH    DE
+        LD      A,E
+        SUB     '='
+        JP      Z,tchr
+        DEC     A
+        JP      NZ,ochr
+tchr:   INC     HL
+ochr:   CALL    term
+        LD      (vPlus),HL	;(Y8D5A)
+        EX      DE,HL
+        POP     DE
+        LD      A,D
+;
+        CP      '='     ;eq
+        JP      NZ,bo1
+        POP     DE
+equal:  CALL    wsub
+eq1:    JP      NZ,false
+        LD      A,E
+        OR      A
+        JP      NZ,false
+true:   LD      DE,00001H
+        ;OR      0FFH
+        ld	 a,0FFH
+        RET
+;       neq lt le
+bo1:    CP      '<'
+        JP      NZ,bo2
+        LD      A,E
+        CP      '='
+        POP     DE
+        JP      Z,lessEq
+        CP      '>'
+        JP      NZ,less
+        CALL    equal
+        JP      nts
+;
+lessEq:     CALL    greater
+	    JP      nts
+;
+less:
+;        CALL    wsub
+;        JP      M,true
+	 CALL    wcmpr
+	 jp	 z,false
+	 jp      c,true
+false:  LD      DE,0000H
+	xor	a	; AND     000H
+        RET
+;       gt,ge
+bo2:    CP      '>'
+        JP      NZ,bo3
+        LD      A,E
+        CP      '='
+        POP     DE
+        JP      NZ,greater
+        CALL    less	;!(greaterEq)
+        JP      nts
+;
+greater:
+;	CALL    wsub
+;        JP      M,false
+;        CALL    eq1
+	CALL    wcmpr
+	JP      c,false
+        CALL    eq1
+nts:    LD      A,E	;invert DE
+        XOR     001H
+        LD      E,A
+        RET
+;
+bo3:    POP     DE
+        CP      '+'     ;add
+        JP      NZ,bo4
+        EX      DE,HL
+        ADD     HL,DE
+        EX      DE,HL
+        RET
+;
+wcmpr:		;take@takeoka.net
+	ld a,h
+	xor	D
+	jp	p,wsub	; same sign?
+        ex      DE,HL	;diff sign then swap args
+	jp wsub
+;
+bo4:    CP      '-'     ;sub
+        JP      NZ,bo51
+wsub:   LD      A,E     ;DE=DE-HL
+        SUB     L
+        LD      E,A
+        LD      A,D
+        SBC     A,H
+        LD      D,A
+        RET
+;
+;;; by take@takeoka.net
+bo51:    CP      '|'     ;or
+        JP      NZ,bo52
+	LD      A,E     ;DE=DE|HL
+	or      L
+        LD      E,A
+        LD      A,D
+        or      H
+        LD      D,A
+        RET
+;
+bo52:    CP      '&'     ;and
+        JP      NZ,bo53
+	LD      A,E     ;DE=DE&HL
+	and      L
+        LD      E,A
+        LD      A,D
+        and     H
+        LD      D,A
+        RET
+;
+bo53:    CP      '^'     ;Xor
+        JP      NZ,bo5
+	LD      A,E     ;DE=DE^HL
+	xor      L
+        LD      E,A
+        LD      A,D
+        xor     H
+        LD      D,A
+        RET
+;;;
+;
+bo5:    CP      '*'
+        JP      NZ,bo6
+mltply: PUSH    DE
+        LD      C,010H
+        LD      DE,00000H
+ml1:    EX      (SP),HL
+        CALL    rrcx
+        EX      (SP),HL
+        JP      NC,ml2
+        EX      DE,HL
+        ADD     HL,DE
+        EX      DE,HL
+ml2:    ADD     HL,HL
+        DEC     C
+        JP      NZ,ml1
+        POP     BC
+        RET
+;
+bo6:    CP      '/'     ;div
+        JP      NZ,error
+        LD      B,000H
+        LD      A,H
+        OR      A
+        JP      NZ,dv1	;minus
+        OR      L
+        JP      NZ,dv3
+        LD      A,'/'		;zero div error
+        JP      error
+	;
+dv1:    JP      P,dv3
+        INC     B
+        EX      DE,HL
+        CALL    negab
+        EX      DE,HL
+dv3:    LD      A,D
+        OR      A
+        JP      P,dv4
+        DEC     B
+        CALL    negab
+dv4:    CALL    divpos
+        LD      (modulo),HL
+        LD      HL,(Y8D68)
+        LD      A,000H
+        CP      B
+        RET     Z
+negab:  LD      A,D
+        CPL
+        LD      D,A
+        LD      A,E
+        CPL
+        LD      E,A
+        INC     DE
+        RET
+;
+divpos: LD      C,000H
+dp1:    INC     C
+        ADD     HL,HL
+        JP      NC,dp1
+        CALL    rarx
+        PUSH    HL
+        LD      HL,00000H
+        EX      (SP),HL
+dp2:    CALL    wsub
+        CCF
+        JP      C,dp3
+        EX      DE,HL
+        ADD     HL,DE
+        EX      DE,HL
+        OR      A
+dp3:    EX      (SP),HL
+        LD      A,L
+        RLA
+        LD      L,A
+        LD      A,H
+        RLA
+        LD      H,A
+        EX      (SP),HL
+        DEC     C
+        JP      Z,dpe
+        CALL    rrcx
+        JP      dp2
+dpe:    POP     HL
+        EX      DE,HL
+        RET
+;
+rrcx:   OR      A       ;CLR Carry
+rarx:   LD      A,H
+        RRA
+        LD      H,A
+        LD      A,L
+        RRA
+        LD      L,A
+        RET
+;
+tstdec: LD      A,(HL)  ;dec ? Cflg=0
+        CP      '9'+1
+        SCF
+        RET     P
+        CP      '0'
+        SCF
+        RET     M
+        CCF
+        RET
+;
+;       input command
+;
+;inpcom: CALL    il1
+inpcom0:
+;
+;       decimal to binary
+;
+deccns: CALL    tstdec
+        RET     C
+        EX      DE,HL
+        LD      HL,00000H
+db1:    LD      A,(DE)
+        SUB     '0'
+        LD      C,A
+        LD      B,000H
+        ADD     HL,BC
+        LD      B,H
+        LD      C,L
+        INC     DE
+        EX      DE,HL
+        CALL    tstdec
+        CCF
+        RET     NC
+        EX      DE,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,BC
+        ADD     HL,HL
+        JP      db1
+;
+command: LD      HL,(Y8D72)
+        PUSH    DE
+        LD      A,(HL)
+;
+        CP      '@'     ;next or until
+        JP      NZ,cm5
+        INC     HL
+        INC     HL
+        LD      E,(HL)
+        CALL    adrvar
+        POP     DE
+        CALL    store
+        PUSH    DE
+        CALL    pulab
+        POP     HL
+        CALL    less
+        JP      NZ,adjsp2
+        CALL    pulpnt
+        LD      B,006H
+nuloop: LD      HL,sp2  ;08D88H sp2-=6
+        LD      A,(HL)
+        SUB     B
+        LD      (HL),A
+        RET
+adjsp2: LD      B,0FCH	;sp2-= -4,(sp2+=4)
+        JP      nuloop
+;
+pulpnt: LD      L,low(varGyoNo)         ;046H
+        CALL    pulx
+        LD      L,low(vPC)         ;042H
+pulx:   CALL    pulab
+store:  LD      (HL),E	;store DE -> (HL)
+        INC     HL
+        LD      (HL),D
+        RET
+;
+pulab:  LD      C,L
+        LD      HL,(sp2)
+        LD      E,(HL)
+        INC     HL
+        LD      D,(HL)
+        INC     HL
+        LD      (sp2),HL
+        LD      L,C
+        RET
+;
+cm5:    CP      '!'     ;gosub
+        JP      NZ,cm1
+        POP     DE
+        EX      DE,HL
+        LD      (curLine),HL
+        EX      DE,HL
+        CALL    zerop
+        RET     Z
+	;
+      .8080
+pshpnt:
+	;lxi h,vPC        ;08D42H
+	lhld vPC        ;08D42H
+        call    pshx0	;push vPC
+        ;lxi h,varGyoNo        ;08D46H
+        lhld varGyoNo        ;08D46H
+pshx0:  ;push hl to (sp2)
+	xchg
+	lhld sp2
+	dcx h
+	mov m,d	;push
+        dcx h
+	mov m,e
+	shld sp2
+        RET
+	;
+	.z80
+ifdef NEVER
+pshpnt: LD      HL,vPC        ;08D42H
+        CALL    pshx	;push vPC
+        LD      HL,varGyoNo        ;08D46H
+pshx:   LD      E,(HL)		;DE<- (HL)
+        INC     HL
+        LD      D,(HL)
+        LD      HL,(sp2)
+        DEC     HL
+        LD      (HL),D	;push
+        DEC     HL
+        LD      (HL),E
+        LD      (sp2),HL
+        RET
+endif
+;
+cm1:    CP      ';'     ;if
+        JP      NZ,cm9
+        POP     DE
+        CALL    zerop
+        RET     NZ
+        LD      SP,stack1
+        JP      nxtl
+;
+cm9:    CP      '>'     ;call
+        JP      NZ,cm00
+        POP     DE
+        EX      DE,HL
+        JP      (HL)
+;
+cm00:   CP      '.'     ;print space
+        JP      NZ,cm4
+        POP     DE
+        LD      D,E
+spc1:   INC     D
+tab1:   DEC     D
+        RET     Z
+        LD      A,' '
+        CALL    putc
+        JP      tab1
+;
+cm4:    CP      '&'     ;new
+        JP      NZ,cm6
+        INC     HL
+        LD      A,(HL)
+        DEC     HL
+        CP      '='
+        JP      NZ,cm6
+        POP     DE
+        CALL    zerop
+        RET     NZ
+        LD      HL,(pgb)
+        LD      (pge),HL
+        LD      (HL),0FFH
+        RET
+;
+cm6:    CP      '$'     ;print ascii char
+        JP      NZ,cm7
+        POP     BC
+        LD      A,E
+        JP      putc
+;
+cm7:    CP      '?'
+        JP      NZ,cm8
+        INC     HL
+        LD      A,(HL)
+        DEC     HL
+        CP      '('
+        JP      NZ,qmark
+        INC     HL
+        CALL    term
+        LD      C,E
+        POP     DE
+outnum: PUSH    BC
+        CALL    bdsgn
+        POP     BC
+        LD      A,L
+        ADD     A,C
+        SUB     087H
+        LD      D,A
+        JP      M,outstr
+        CALL    spc1
+        JP      outstr
+;
+bdsgn:  LD      A,D	;returns hl= top of numstr
+        OR      A
+        JP      M,bdneg
+bdj:    JP      bindec
+bdneg:  CALL    negab
+        CALL    bdj
+        DEC     HL
+        LD      (HL),'-'
+        RET
+                ;
+cm8:    CP      '='     ;change program text adrs(pgb)
+        JP      NZ,stavar
+        POP     DE
+        EX      DE,HL
+        LD      (pgb),HL
+        EX      DE,HL
+        LD      HL,0FF00H
+        LD      (curLine),HL
+        CALL    srclin
+        LD      (pge),HL
+        JP      main
+;
+stavar: LD      HL,(Y8D72)      ;let store var
+        CALL    vname
+        CP      ':'
+        JP      Z,outport
+	;
+sta2b:  CALL    adr2b
+        POP     DE
+        JP      store
+	;
+sta1b:
+        CALL    adr1b           ;sta1byte
+        POP     DE
+        LD      (HL),E
+        RET
+	;
+	.8080
+outport:	
+	;output port access , take@takeoka.net
+	mov a,e
+	cpi '^'	;out-port Variable symbol
+	jnz sta1b
+	inx h
+	call  artexp	;calc. port address
+	mov c,e
+	pop d	;setting value is DE
+ifdef AKI80
+        .z80
+	out (c),e	;Z80 only
+	.8080
+else
+	xchg
+	shld	803Ah ;'['
+	xchg
+endif
+	ret
+	;
+	.z80
+;
+;       error
+;
+error:  LD      B,A
+        CALL    crlf
+        LD      A,'?'
+        CALL    putc
+        LD      A,B
+        CALL    putc
+        LD      A,' '
+        CALL    putc
+        LD      HL,(vPC)
+        LD      A,(LBUF)
+        CP      (HL)
+        JP      NZ,er1
+        CALL    outstr
+        JP      main
+er1:    CALL    outlin
+        JP      main
+;
+;       print or prhex
+;
+qmark:  CP      '?'
+        JP      Z,prhex
+        CP      '$'
+        JP      Z,prhex2
+;
+        POP     DE      ;print left
+        CALL    bdsgn
+        JP      outstr
+;
+prhex:  LD      B,D     ;pr 4hex
+        CALL    pr2hex
+;
+prhex2: POP     DE      ;pr 2 hex
+        LD      B,E
+pr2hex: LD      A,B
+        CALL    prhexh
+        LD      A,B
+        AND     00FH
+        JP      prhexl
+;
+prhexh: AND     0F0H
+        RRCA
+        RRCA
+        RRCA
+        RRCA
+;prhexl: CP      10
+;        JP      M,ph1
+;        ADD     A,007H
+;ph1:    ADD     A,'0'
+;        JP      putc
+prhexl:
+    ;and  0Fh
+    add  a,90h
+    daa
+    adc  a,40h
+    daa
+    JP      putc
+;
+ready:
+        db      cr,lf,'*READY',0
+;
+ifdef NO_LINED
+;
+;       input into line-buffer
+;
+il0:
+	cp      brkchar ;^C, input cancel
+        JP      Z,il1
+	CP      ' '
+	JP      C,il3		;Ctrl code? then nop
+        LD      A,E
+        CP      lbufsiz
+        JP      C,il31
+	ld	a,7		;inpbuf full then Bell ^G Bell
+        CALL    putc
+	JP      il3
+	;			
+il31:
+	ld	a,(hl)
+	call	putc
+	INC     HL		;put char to buf
+        INC     E
+	JP      il3
+        ;
+il1:    CALL    crlf
+inplin: LD      A,':'
+        CALL    putc
+        LD      HL,lbuf+1       ;08D8BH
+        LD      E,002H
+illoop: DEC     HL ; back(delete) 1char
+        DEC     E
+        JP      Z,inplin
+il3:	;CALL    getc	;getchar(with echo)
+	CALL    getch	;getchar(no echo)
+        LD      (HL),A
+        CP      bs	;back space?
+	JP      Z,il22
+il21:	cp      del	;same as back space
+	jp      nz,il4
+il22:	push af
+	ld      a,bs	;del then putc BS
+        call    putc
+	ld      a,' '
+        call    putc
+	ld      a,bs
+        call    putc
+	pop af
+	jp      illoop
+il4:    CP      cr
+	JP      nz,il0		;CR ?
+ilend:
+        LD      (HL),000H	;set EOL
+        LD      HL,lbuf         ;08D8AH
+	;;;
+	;;
+else
+	;;;;input into line-buffer, call lined
+	;; copyright 2025 by S.TAKEOKA take@takeoka.net
+	;;
+il1:    CALL    crlf
+inplin: LD      A,':'
+        CALL    putc
+        LD      HL,lbuf       ;08D8AH
+	call lined
+        LD      HL,lbuf         ;08D8AH
+	; fall down to crlf
+endif
+	;;;
+	public crlf
+crlf:   LD      A,cr
+        CALL    putc
+        LD      A,lf
+        JP      putc
+;
+getc:
+	call getch
+	cp   ' '
+	ret  c
+	jp	putc
+
+getch:
+        CALL    inpkey
+	cp	'A'
+	jp	c,nonalpha
+	cp	'Z'+1
+	jp	nc,alpha2
+	xor	020h	;tolower 'A'~'Z'
+	jp	nonalpha
+	;
+alpha2:	
+	cp	'a'
+	jp	c,nonalpha
+	cp	'z'+1
+	jp	nc,nonalpha
+	xor	020h	;toupper 'a'~'z'
+nonalpha:	
+	ret
+;
+	;;;;
+inpkey:
+        call    getkey
+        or      a
+        jp      z,inpkey
+        ret
+;
+;;;;
+ifdef CPM
+
+sioinit:
+	ret
+;
+	public putc
+putc:
+        push    af
+        push    bc
+        push    de
+        push    hl
+        ld      e,a
+        ld      c,6
+        call    BDOS
+        pop     hl
+        pop     de
+        pop     bc
+        pop     af
+        ret
+endif
+ifdef AKI80
+      .8080
+putc:
+	PUSH	psw
+txloop:	IN	PSIOAC	;CHECK STATUS
+	;BIT	2,A		;IF BUFFER NOT EMPTY
+	ani	00000100B	;IF BUFFER NOT EMPTY
+	jz txloop
+	POP	psw
+	OUT	PSIOAD	;TX
+	RET
+;
+endif
+ifdef CPM
+      .z80
+getkey:
+        push    bc
+        push    de
+        push    hl
+        ld      e,0ffh
+        ld      c,6
+        call    BDOS
+        pop     hl
+        pop     de
+        pop     bc
+        ret
+;
+endif
+ifdef AKI80
+getkey: ; check SIO RX, 0 == NO key
+	xra a
+	out	PSIOAC	;select RR0
+	IN	PSIOAC	;CHECK RECEIVE
+	ani 00000001B		; 0 == NO key
+	rz
+	IN	PSIOAD	;GET RX DATA
+	ret
+;;;;;;
+PCTCC3	EQU	13H
+PSIOAD	EQU	18H
+PSIOAC	EQU	19H
+PSIOBD	EQU	1AH
+PSIOBC	EQU	1BH
+;;;;;;
+;
+;	Init CTC, SIO
+;
+;	SIOA COMMAND sequence
+SIOACD:
+	DB	00011000B	;RESET
+	;DB	01H,00010000B	;RX INTERRUPT ENABLE
+	DB	01H,00000000B	;RX INTERRUPT disABLE
+	DB	04H,01000100B	;FORMAT
+	DB	05H,11101010B	;TX ENABLE
+	DB	03H,11000001B	;RX ENABLE
+SIOACL	EQU	$-SIOACD
+;
+;	SIOB COMMAND  sequence
+SIOBCD:
+	DB	00011000B		;RESET
+	DB	01H,00000000B		;DISABLE STATUS/AFFECTS VECTOR
+	;DB	02H,INTVCT AND 00FFH	;SET INTERRUPT VECTOR
+	DB	02H, 00FFH	;SET INTERRUPT VECTOR (gomi)
+SIOBCL	EQU	$-SIOBCD
+	;; 
+;
+;	CTC INITIALIZE
+;
+sioinit:	
+	mvi	A,00000111B
+	OUT	PCTCC3
+	mvi	A,4		;9.8304MHz
+;	LD	A,3		;7.3728MHz
+;	LD	A,2		;4.9152MHz
+;	LD	A,1		;2.4576MHz
+	OUT	PCTCC3
+;
+;	SIO INITIALIZE
+	;; SIO-A
+	mvi	B,SIOACL	;LENGTH
+	mvi	C,PSIOAC	;I/O ADDRESS
+	lxi	H,SIOACD	;COMMAND ADDRESS
+	.z80
+	OTIR	;outir	
+	.8080
+	;; SIO-B
+	mvi	B,SIOBCL	;LENGTH
+	mvi	C,PSIOBC	;I/O ADDRESS
+	lxi	H,SIOBCD	;COMMAND ADDRESS
+	.z80
+	OTIR	;outir	
+	.8080
+	;; 
+	ret
+;;;;;;
+endif
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;	input line editor
+;	copyright by S.TAKEOKA
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+left equ  'B' and 1fh
+right equ  'F' and 1fh
+ltop equ  'A' and 1fh
+lend equ  'E' and 1fh
+delc equ  'D' and 1fh
+lpre equ  'P' and 1fh
+;
+ctlC equ  'C' and 1fh
+BS	equ 8 ;back space
+CR equ  0dh
+LF equ  0ah
+DELBS	equ 7Fh ;back space
+;DELBS	equ 0FFh ;back space
+;
+	.8080
+	aseg
+;;;;
+;
+ifdef LinedTEST
+;;;;;;;;;;;;;
+; line editor
+; copyright 2025 by S.TAKEOKA
+;;;;;;;;;;;;;
+lbufsiz equ 80
+lbuf equ 8000h
+	org lbuf
+	ds lbufsiz
+	;
+	;org 100h
+main:
+	call crlf
+	mvi a,'?'
+	call putc
+	call lined
+	lxi h,lbuf
+	call crlf
+	mvi a,' '
+	call putc
+	call puts
+	jmp main
+	;
+endif
+
+;;;;;
+; line editor
+; copyright 2025 by S.TAKEOKA
+;;;;;
+lined:
+	lxi h,lbuf	;HL holds current insert point
+	mov e,l		;DE holds end of line
+	mov d,h
+	mvi m,0	;put EOL
+	;xra a	;put EOL
+	;stax d
+	;
+linedloop:
+	call getch
+	cpi  ' '
+	jc   ctrl
+	;
+	cpi DELBS
+	jz ctrbs3	;Back Space
+	;
+	;normal char, insert
+normal:	mov b,a
+	mov a,e
+	sui low (lbuf)	;e-low(lbuf) *****
+	cpi lbufsiz
+	jnc linedloop	;buf full
+	;
+	mov a,b
+	CALL putc
+	;
+	xchg
+	mvi m,0 ;put EOL at (DE)
+	xchg
+	call strrcpy	;from DE, 1 char ushiro zurasi copy
+	mov m,b
+	inx h	;inr l
+	inx d	;inr e
+	xra a
+	stax d
+	call puts
+	call backspcs
+	jmp linedloop
+	;
+ctrl:
+	;;;cpi ctlC ;exit to CP/M
+	;;;jz 0
+	;
+	cpi left
+	jnz ctl0
+	mov a,l
+	sui low (lbuf)	;l-low(lbuf) *****
+	jz linedloop ;at top of line
+	dcx h	;;dcr l
+ctrl1:	mvi a,BS
+	call putc	; move cursor Left
+	jmp linedloop
+ctl0:
+	cpi CR
+	jnz ctl8
+	xra a
+	stax d	;put EOL at (DE)
+	push d
+	lxi h,lbuf   ; copy to history buf(lbuf2)
+	lxi d,(lbuf2-1)
+        CALL    cpy
+	pop d
+	ret
+	;
+ctl8:
+	cpi lpre
+	jnz ctl1
+	;call crlf!lxi h,lbuf2!	call puts
+	lxi h,lbuf2   ; copy from history buf(lbuf2)
+	lxi d,(lbuf-1)
+        CALL    cpy	;DE points end of line
+	push d
+	call crlf
+	lxi h,lbuf
+	call puts
+	pop d
+	mov l,e	;HL <-DE
+	mov h,d
+	;lxi h,lbuf
+	jmp linedloop
+	;
+ctl1:
+	cpi right
+	jnz ctl2
+	mov a,m
+	ora a	;EOL?
+	jz linedloop
+	mov a,m
+	inx h	;inr l
+	CALL    putc
+ctl2:
+	cpi ltop
+	jnz ctl3
+	mov a,l
+	sui low (lbuf)	;l-low(lbuf) *****
+	mov c,a
+ctrlx3:
+	jz linedloop
+	;jp ctrlx2
+	;jmp linedloop
+ctrlx2:	mvi a,BS
+	call putc	; move cursor Left
+	dcx h		;dcr l
+	dcr c
+	jmp ctrlx3
+	;
+ctl3:
+	cpi lend
+	jnz ctl4
+	call puts
+	mov l,e
+	mov h,d
+	jmp linedloop
+	;
+ctl4:
+	cpi delc
+	jnz ctl5
+ctrbs2:	;delete 1char
+	mov a,m
+	ora a
+	jz linedloop
+	;
+  	call strcpy	;MAE zurasi copy
+	dcx d		;dcr e
+	call puts
+	mvi a,' '
+	call putc
+	mvi a,BS
+	call putc
+	call backspcs
+	jmp linedloop
+	;
+ctl5:
+;ctl6:
+	cpi BS
+	jnz ctl7
+ctrbs3:
+	mov a,l
+	sui low (lbuf)	;l-low(lbuf) *****
+	jz linedloop ;at top of line
+	;jp ctrbs1
+	;inr l	;at top of line
+	;jmp linedloop
+	dcx h	;dcr l
+ctrbs1:	mvi a,BS	; back 1char
+	call putc
+	jmp ctrbs2	;del char
+	;
+ctl7:
+	jmp linedloop
+;;
+	.8080
+	;from DE , 1 char ushiro zurasi copy
+strrcpy:
+	push h
+	push d
+	mov a,e
+	sub l
+	jz strcpret
+	inr a
+	mov c,a
+	mov l,e
+	mov h,d
+	inx h
+strcp1:	ldax d
+	mov m,a
+	dcx h
+	dcx d
+	dcr c
+	jnz strcp1
+strcpret:
+	pop d
+	pop h
+	ret
+;
+strcpy:	;MAE zurasi copy
+	push h
+	push d
+	mov e,l
+	inr e
+strcp2:
+	ldax d
+	mov m,a
+	inx h
+	inx d
+	ora a
+	jz strcpret
+	jmp strcp2
+
+;
+backspcs:
+	inr c
+	mvi a,BS
+bcksps1:
+	dcr c
+	rz
+	call	putc
+	jmp bcksps1
+;;;
+puts:	push h
+	mvi c,0	;count chars
+puts1:	mov a,m
+	ora a
+	jz putsret
+	call	putc
+	inx h
+	inr c
+	jmp puts1	
+putsret:pop h
+	ret
+;
+        END
+
