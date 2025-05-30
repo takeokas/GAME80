@@ -4,18 +4,7 @@
 *インタープリタ内のサブルーチンのアドレスは変わっているので、通常のGAME80コンパイラが生成するバイナリは動作しないと思います。  
 
 ## GIAKI.MAC: GAME80t interpreter, enhanced by S.Takeoka
-### giaki80.hex は秋月 スーパーAKI80 用のバイナリで、そのままROMに焼けば動く。  
-  CP/M下で m80(macro-80), l80(link-80)を使用して、ビルドする。  
-     A> submit giaki80  
-  で、ビルド。  
-  l80が、  
-   Origin below loader memory, move anyway(Y or N)?  
-  と尋ねてきたら「y」を入力。giaki80.hexファイルが生成される。  
 
-  CP/M版は、メモリ・アロケーションがめちゃくちゃだが…
-     A> submit giaki  
-  で、一応ビルド可能。CP/Mのメモリによっては実行可能。    
-    
 
 ### 大小比較を正しくした。6800,6502,6809版と同一に。  
 The Less< and the Greater> operators judge correctly.same as 6800,6502,6809 version.  
@@ -47,6 +36,19 @@ AKI80版では、RST命令のジャンプ・テーブルを 4Bytes づつ用意�
  NMIは、0ffe0hへジャンプする。この領域は、GAME80tの HotStart へのjmp に初期化してある。  
     外部にNMIスイッチを接続し、そのスイッチのOnで、GAME80のプロンプトに制御を戻すことができる。そのときプログラム・テキストが消えることがない。  
     NMIのジャンプ・テーブルは、ユーザが自由に上書きしてよい。  
+
+### ビルド方法
+  CP/M下で m80(macro-80), l80(link-80)を使用して、ビルドする。  
+     A> submit giaki80  
+  で、ビルド。  
+  l80が、  
+   Origin below loader memory, move anyway(Y or N)?  
+  と尋ねてきたら「y」を入力。giaki80.hexファイルが生成される。  
+
+  CP/M版は、メモリ・アロケーションがめちゃくちゃだが…
+     A> submit giaki  
+  で、一応ビルド可能。CP/Mのメモリによっては実行可能。    
+    
 
 ; AKI80 version:  
 ; RST1〜7 jump to 0ffe4h〜0fffch on RAM, Those are not initialized.  
