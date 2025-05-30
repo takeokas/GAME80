@@ -1,5 +1,6 @@
 # Game_Language
-1970's small programming language which popular in Japan.
+1970's small programming language which popular in Japan.  
+独自強化した GAME80 インタープリタ"GAME80t"です。IO命令以外は 8080 CPUで実行できます。
 
 ## GIAKI.MAC: GAME80 interpriter, enhanced by S.Takeoka
 
