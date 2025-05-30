@@ -3,8 +3,8 @@
 
 ## GIAKI.MAC: GAME80 interpriter, enhanced by S.Takeoka
 
-### 大小比較を正しくした。6800版と同一に。  
-The Less< and the Greater> operators judge correctly.same as 6800 version.  
+### 大小比較を正しくした。6800,6502,6809版と同一に。  
+The Less< and the Greater> operators judge correctly.same as 6800,6502,6809 version.  
    try below: 下の式を試せばわかります。(オリジナルのGAME80, GAME Z80は判定が誤っている)  
     ?=-32764>100 " "?=-32764>=100 " "?=-32764<100 " "?=-32764<=100  
 
