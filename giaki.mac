@@ -1,5 +1,5 @@
 ;GIAKI.MAC:
-;	GAME80 interpriter, enhanced by S.Takeoka
+;	GAME80 interpreter, enhanced by S.Takeoka
 ;
 ;The Less< and the Greater> operators judge correctly.same as 6800 version.
 ; try below:
@@ -792,7 +792,8 @@ adrind: CALL    adrvar
         mov h,m
         mov l,c
         shld Y8D76  ; LD      (Y8D76),HL
-        lhld Y8D70  ; LD      HL,(Y8D70)
+        lhld Y8D70  ; LD      HL,(Y8D70)
+
 	inx h
         JMP      artexp
 ;
