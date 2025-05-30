@@ -2,9 +2,9 @@
 1970's small programming language which popular in Japan.  
 独自強化した GAME80 インタープリタ"GAME80t"。IO命令以外は 8080 CPUで実行できる。  
 *インタープリタ内のサブルーチンのアドレスは変わっているので、通常のGAME80コンパイラが生成するバイナリは動作しないと思います。  
+### giaki80.hex は秋月 スーパーAKI80 用のバイナリで、そのままROMに焼けば動く。 
 
 ## GIAKI.MAC: GAME80t interpreter, enhanced by S.Takeoka
-### giaki80.hex は秋月 スーパーAKI80 用のバイナリで、そのままROMに焼けば動く。 
 
 ### 大小比較を正しくした。6800,6502,6809版と同一に。  
 The Less< and the Greater> operators judge correctly.same as 6800,6502,6809 version.  
