@@ -30,6 +30,9 @@ The Less< and the Greater> operators judge correctly.same as 6800,6502,6809 vers
 ; Input Line Editor, <-^A, <^B, DEL^D, >^F, ->^E  
 ; on the prompt, LineNo\ : edit the specified line.  
 
+### 入力行ヒストリ
+   ^Pで、一つ前の入力行を呼び出せる。ヒストリは1つのみ    
+
 ### RST ジャンプ・テーブル
 AKI80版では、RST命令のジャンプ・テーブルを 4Bytes づつ用意してある。初期化はしていない。  
  RST1〜7 は RAM上の 0ffe4h〜0fffch へjmpする。このRAM領域にjmp命令を書くなどすれば、任意のルーチンへ飛ばすことができる。  
